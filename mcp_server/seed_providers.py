@@ -46,67 +46,62 @@ SEED_PROVIDERS = [
     {
         "id": "groq",
         "name": "Groq (Gratuito)",
-        "provider_type": "groq",
-        "api_base": "https://api.groq.com/openai/v1",
+        "type": "custom",
+        "api_base_url": "https://api.groq.com/openai/v1",
         "api_key": "",  # Set GROQ_API_KEY
         "default_model": "llama-3.3-70b-versatile",
         "models": GROQ_MODELS,
         "enabled": False,
         "rate_limit_rpm": 30,
         "rate_limit_tpm": 6000,
-        "description": "Groq - Inference ultra-rápida, free tier generoso"
     },
     {
         "id": "together",
         "name": "Together AI (Free Tier)",
-        "provider_type": "together",
-        "api_base": "https://api.together.xyz/v1",
+        "type": "custom",
+        "api_base_url": "https://api.together.xyz/v1",
         "api_key": "",  # Set TOGETHER_API_KEY
         "default_model": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
         "models": TOGETHER_FREE_MODELS,
         "enabled": False,
         "rate_limit_rpm": 60,
         "rate_limit_tpm": 100000,
-        "description": "Together AI - Modelos open source, $5 free credits"
     },
     {
         "id": "openrouter",
         "name": "OpenRouter (Free Models)",
-        "provider_type": "openrouter",
-        "api_base": "https://openrouter.ai/api/v1",
+        "type": "custom",
+        "api_base_url": "https://openrouter.ai/api/v1",
         "api_key": "",  # Set OPENROUTER_API_KEY
         "default_model": "meta-llama/llama-3.2-3b-instruct:free",
         "models": OPENROUTER_FREE_MODELS,
         "enabled": False,
         "rate_limit_rpm": 20,
         "rate_limit_tpm": 50000,
-        "description": "OpenRouter - Gateway para múltiplos modelos, alguns gratuitos"
     },
     {
         "id": "google",
         "name": "Google Gemini (Free)",
-        "provider_type": "google",
-        "api_base": "https://generativelanguage.googleapis.com/v1beta",
+        "type": "google",
+        "api_base_url": "https://generativelanguage.googleapis.com/v1beta",
         "api_key": "",  # Set GOOGLE_API_KEY
         "default_model": "gemini-1.5-flash",
         "models": GOOGLE_GEMINI_MODELS,
         "enabled": False,
         "rate_limit_rpm": 15,
         "rate_limit_tpm": 32000,
-        "description": "Google AI Studio - Gemini com free tier generoso"
     },
     {
         "id": "ollama",
         "name": "Ollama (Local)",
-        "provider_type": "ollama",
-        "api_base": "http://localhost:11434/v1",
+        "type": "ollama",
+        "api_base_url": "http://localhost:11434/v1",
         "api_key": "ollama",
         "default_model": "llama3.2",
         "models": ["llama3.2", "llama3.1", "mistral", "codellama", "phi3"],
         "enabled": False,
         "rate_limit_rpm": 1000,
         "rate_limit_tpm": 1000000,
-        "description": "Ollama - LLMs locais, 100% gratuito e privado"
     },
 ]
 
