@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Server — Portal de Gestão</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+        }
+        .btn-primary {
+            background: var(--primary);
+            transition: background 0.2s;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        .input-field {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        .tab-active {
+            border-bottom: 2px solid var(--primary);
+            color: var(--primary);
+        }
+        .chat-message {
+            max-width: 80%;
+        }
+        .chat-user {
+            background: var(--primary);
+            margin-left: auto;
+        }
+        .chat-assistant {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+        }
+        .sidebar-item {
+            transition: all 0.2s;
+        }
+        .sidebar-item:hover, .sidebar-item.active {
+            background: rgba(99, 102, 241, 0.1);
+            border-left: 3px solid var(--primary);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+        
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Markdown in chat */
+        .chat-content pre {
+            background: var(--bg-dark);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            margin: 0.5rem 0;
+        }
+        .chat-content code {
+            background: var(--bg-dark);
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Header -->
+    <header class="fixed top-0 left-0 right-0 h-16 bg-slate-900/95 backdrop-blur border-b border-slate-700 z-50 flex items-center px-6">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center">
+                <i class="fas fa-robot text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-semibold text-white">MCP Server</h1>
+                <p class="text-xs text-slate-400">Multi-LLM Gateway</p>
+            </div>
+        </div>
+        <div class="ml-auto flex items-center gap-4">
+            <span id="connection-status" class="flex items-center gap-2 text-sm">
+                <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                <span class="text-slate-400">Conectado</span>
+            </span>
+            <button onclick="logout()" class="text-slate-400 hover:text-white">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="fixed left-0 top-16 bottom-0 w-64 bg-slate-900 border-r border-slate-700 overflow-y-auto">
+        <nav class="py-4">
+            <div class="px-4 mb-2 text-xs font-semibold text-slate-500 uppercase">Principal</div>
+            <a href="#" onclick="showTab('dashboard')" class="sidebar-item active flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white" data-tab="dashboard">
+                <i class="fas fa-chart-line w-5"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" onclick="showTab('chat')" class="sidebar-item flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white" data-tab="chat">
+                <i class="fas fa-comments w-5"></i>
+                <span>Chat</span>
+            </a>
+            
+            <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-500 uppercase">Configurações</div>
+            <a href="#" onclick="showTab('providers')" class="sidebar-item flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white" data-tab="providers">
+                <i class="fas fa-plug w-5"></i>
+                <span>Providers LLM</span>
+            </a>
+            <a href="#" onclick="showTab('security')" class="sidebar-item flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white" data-tab="security">
+                <i class="fas fa-shield-alt w-5"></i>
+                <span>Segurança</span>
+            </a>
+            <a href="#" onclick="showTab('personas')" class="sidebar-item flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white" data-tab="personas">
+                <i class="fas fa-user-circle w-5"></i>
+                <span>Personas</span>
+            </a>
+            <a href="#" onclick="showTab('customization')" class="sidebar-item flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white" data-tab="customization">
+                <i class="fas fa-sliders-h w-5"></i>
+                <span>Customização</span>
+            </a>
+            
+            <div class="px-4 mt-6 mb-2 text-xs font-semibold text-slate-500 uppercase">Sistema</div>
+            <a href="#" onclick="showTab('metrics')" class="sidebar-item flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white" data-tab="metrics">
+                <i class="fas fa-chart-bar w-5"></i>
+                <span>Métricas</span>
+            </a>
+            <a href="#" onclick="showTab('logs')" class="sidebar-item flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white" data-tab="logs">
+                <i class="fas fa-file-alt w-5"></i>
+                <span>Logs</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="ml-64 pt-16 min-h-screen">
+        <!-- Dashboard Tab -->
+        <div id="tab-dashboard" class="tab-content p-6">
+            <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
+            
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-slate-400 text-sm">Total Requests</p>
+                            <p id="stat-requests" class="text-2xl font-bold">0</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-lg bg-indigo-600/20 flex items-center justify-center">
+                            <i class="fas fa-paper-plane text-indigo-400"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">
+                        <span id="stat-rpm" class="text-green-400">0</span> req/min
+                    </p>
+                </div>
+                
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-slate-400 text-sm">Tokens (In/Out)</p>
+                            <p id="stat-tokens" class="text-2xl font-bold">0 / 0</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-lg bg-green-600/20 flex items-center justify-center">
+                            <i class="fas fa-coins text-green-400"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">
+                        <span id="stat-tpm" class="text-green-400">0</span> tokens/min
+                    </p>
+                </div>
+                
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-slate-400 text-sm">Bytes (In/Out)</p>
+                            <p id="stat-bytes" class="text-2xl font-bold">0 / 0</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-lg bg-blue-600/20 flex items-center justify-center">
+                            <i class="fas fa-exchange-alt text-blue-400"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-slate-400 text-sm">Taxa de Erro</p>
+                            <p id="stat-errors" class="text-2xl font-bold">0%</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-lg bg-red-600/20 flex items-center justify-center">
+                            <i class="fas fa-exclamation-triangle text-red-400"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">
+                        <span id="stat-error-count">0</span> erros total
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="card p-4">
+                    <h3 class="text-lg font-semibold mb-4">Requests (últimos 60 min)</h3>
+                    <canvas id="chart-requests" height="200"></canvas>
+                </div>
+                <div class="card p-4">
+                    <h3 class="text-lg font-semibold mb-4">Tokens (últimos 60 min)</h3>
+                    <canvas id="chart-tokens" height="200"></canvas>
+                </div>
+            </div>
+            
+            <!-- Provider Stats -->
+            <div class="card p-4 mb-6">
+                <h3 class="text-lg font-semibold mb-4">Providers</h3>
+                <div id="provider-stats" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Provider cards will be inserted here -->
+                </div>
+            </div>
+            
+            <!-- Recent Requests -->
+            <div class="card p-4">
+                <h3 class="text-lg font-semibold mb-4">Requests Recentes</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-slate-400 border-b border-slate-700">
+                                <th class="text-left py-2 px-3">Horário</th>
+                                <th class="text-left py-2 px-3">Provider</th>
+                                <th class="text-left py-2 px-3">Modelo</th>
+                                <th class="text-right py-2 px-3">Tokens In</th>
+                                <th class="text-right py-2 px-3">Tokens Out</th>
+                                <th class="text-right py-2 px-3">Latência</th>
+                                <th class="text-center py-2 px-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-requests">
+                            <!-- Rows will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Tab -->
+        <div id="tab-chat" class="tab-content hidden h-[calc(100vh-4rem)]">
+            <div class="flex flex-col h-full">
+                <!-- Chat Header -->
+                <div class="p-4 border-b border-slate-700 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-xl font-bold">Chat</h2>
+                        <select id="chat-persona" class="input-field px-3 py-1 rounded text-sm">
+                            <!-- Personas will be loaded here -->
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select id="chat-provider" class="input-field px-3 py-1 rounded text-sm">
+                            <option value="">Auto (Fallback)</option>
+                            <!-- Providers will be loaded here -->
+                        </select>
+                        <button onclick="clearChat()" class="px-3 py-1 text-sm text-slate-400 hover:text-white">
+                            <i class="fas fa-trash"></i> Limpar
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Chat Messages -->
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4">
+                    <div class="text-center text-slate-500 py-8">
+                        <i class="fas fa-comments text-4xl mb-3"></i>
+                        <p>Inicie uma conversa com o assistente</p>
+                    </div>
+                </div>
+                
+                <!-- Chat Input -->
+                <div class="p-4 border-t border-slate-700">
+                    <div class="flex gap-3">
+                        <textarea 
+                            id="chat-input" 
+                            class="input-field flex-1 px-4 py-3 rounded-lg resize-none" 
+                            placeholder="Digite sua mensagem..." 
+                            rows="1"
+                            onkeydown="handleChatKeydown(event)"
+                        ></textarea>
+                        <button 
+                            onclick="sendMessage()" 
+                            id="btn-send"
+                            class="btn-primary px-6 py-3 rounded-lg font-medium flex items-center gap-2"
+                        >
+                            <i class="fas fa-paper-plane"></i>
+                            <span>Enviar</span>
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">Enter para enviar, Shift+Enter para nova linha</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Providers Tab -->
+        <div id="tab-providers" class="tab-content hidden p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold">Providers LLM</h2>
+                <button onclick="openProviderModal()" class="btn-primary px-4 py-2 rounded-lg font-medium">
+                    <i class="fas fa-plus mr-2"></i> Novo Provider
+                </button>
+            </div>
+            
+            <div id="providers-list" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- Provider cards will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Security Tab -->
+        <div id="tab-security" class="tab-content hidden p-6">
+            <h2 class="text-2xl font-bold mb-6">Segurança</h2>
+            
+            <!-- Global Settings -->
+            <div class="card p-6 mb-6">
+                <h3 class="text-lg font-semibold mb-4">Configurações Gerais</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" id="security-enabled" class="w-5 h-5 rounded" onchange="updateSecurityConfig()">
+                        <span>Segurança Ativa</span>
+                    </label>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" id="pii-detection" class="w-5 h-5 rounded" onchange="updateSecurityConfig()">
+                        <span>Detecção de PII</span>
+                    </label>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" id="audit-enabled" class="w-5 h-5 rounded" onchange="updateSecurityConfig()">
+                        <span>Auditoria</span>
+                    </label>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" id="rate-limit-enabled" class="w-5 h-5 rounded" onchange="updateSecurityConfig()">
+                        <span>Rate Limiting por Usuário</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Content Filters -->
+            <div class="card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">Filtros de Conteúdo</h3>
+                    <button onclick="openFilterModal()" class="btn-primary px-4 py-2 rounded-lg font-medium text-sm">
+                        <i class="fas fa-plus mr-2"></i> Novo Filtro
+                    </button>
+                </div>
+                <div id="filters-list" class="space-y-3">
+                    <!-- Filters will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Personas Tab -->
+        <div id="tab-personas" class="tab-content hidden p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold">Personas</h2>
+                <button onclick="openPersonaModal()" class="btn-primary px-4 py-2 rounded-lg font-medium">
+                    <i class="fas fa-plus mr-2"></i> Nova Persona
+                </button>
+            </div>
+            
+            <div id="personas-list" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- Persona cards will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Customization Tab -->
+        <div id="tab-customization" class="tab-content hidden p-6">
+            <h2 class="text-2xl font-bold mb-6">Customização</h2>
+            
+            <!-- General Settings -->
+            <div class="card p-6 mb-6">
+                <h3 class="text-lg font-semibold mb-4">Configurações Gerais</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Temperatura Padrão</label>
+                        <input type="range" id="default-temperature" min="0" max="2" step="0.1" class="w-full" onchange="updateCustomizationConfig()">
+                        <span id="temperature-value" class="text-sm">0.7</span>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Max Tokens Padrão</label>
+                        <input type="number" id="default-max-tokens" class="input-field w-full px-3 py-2 rounded" value="2048">
+                    </div>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" id="streaming-enabled" class="w-5 h-5 rounded" checked>
+                        <span>Streaming Habilitado</span>
+                    </label>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" id="cache-enabled" class="w-5 h-5 rounded">
+                        <span>Cache Habilitado</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Retry Config -->
+            <div class="card p-6">
+                <h3 class="text-lg font-semibold mb-4">Retry & Fallback</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" id="retry-enabled" class="w-5 h-5 rounded" checked>
+                        <span>Retry Habilitado</span>
+                    </label>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Max Retries</label>
+                        <input type="number" id="max-retries" class="input-field w-full px-3 py-2 rounded" value="3" min="0" max="10">
+                    </div>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" id="fallback-enabled" class="w-5 h-5 rounded" checked>
+                        <span>Fallback Habilitado</span>
+                    </label>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" id="exponential-backoff" class="w-5 h-5 rounded" checked>
+                        <span>Exponential Backoff</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics Tab -->
+        <div id="tab-metrics" class="tab-content hidden p-6">
+            <h2 class="text-2xl font-bold mb-6">Métricas Detalhadas</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="card p-4">
+                    <h3 class="text-lg font-semibold mb-4">Requests (24h)</h3>
+                    <canvas id="chart-requests-24h" height="200"></canvas>
+                </div>
+                <div class="card p-4">
+                    <h3 class="text-lg font-semibold mb-4">Latência por Provider</h3>
+                    <canvas id="chart-latency" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div id="tab-logs" class="tab-content hidden p-6">
+            <h2 class="text-2xl font-bold mb-6">Logs do Sistema</h2>
+            <div class="card p-4">
+                <div id="logs-container" class="font-mono text-sm space-y-1 max-h-[600px] overflow-y-auto">
+                    <p class="text-slate-500">Carregando logs...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Provider Modal -->
+    <div id="provider-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="card w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-slate-700">
+                <h3 id="provider-modal-title" class="text-xl font-bold">Novo Provider</h3>
+            </div>
+            <form id="provider-form" class="p-6 space-y-4" onsubmit="saveProvider(event)">
+                <input type="hidden" id="provider-id">
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Nome</label>
+                    <input type="text" id="provider-name" class="input-field w-full px-3 py-2 rounded" required>
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Tipo</label>
+                    <select id="provider-type" class="input-field w-full px-3 py-2 rounded" required>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="ollama">Ollama</option>
+                        <option value="azure_openai">Azure OpenAI</option>
+                        <option value="google">Google</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">API Key</label>
+                    <input type="password" id="provider-api-key" class="input-field w-full px-3 py-2 rounded">
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">URL Base (opcional)</label>
+                    <input type="url" id="provider-base-url" class="input-field w-full px-3 py-2 rounded" placeholder="https://api.openai.com/v1">
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Modelos (separados por vírgula)</label>
+                    <input type="text" id="provider-models" class="input-field w-full px-3 py-2 rounded" placeholder="gpt-4, gpt-3.5-turbo">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Max Tokens</label>
+                        <input type="number" id="provider-max-tokens" class="input-field w-full px-3 py-2 rounded" value="4096">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Prioridade</label>
+                        <input type="number" id="provider-priority" class="input-field w-full px-3 py-2 rounded" value="100">
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeProviderModal()" class="flex-1 px-4 py-2 border border-slate-600 rounded-lg">Cancelar</button>
+                    <button type="submit" class="flex-1 btn-primary px-4 py-2 rounded-lg">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Filter Modal -->
+    <div id="filter-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="card w-full max-w-lg mx-4">
+            <div class="p-6 border-b border-slate-700">
+                <h3 id="filter-modal-title" class="text-xl font-bold">Novo Filtro</h3>
+            </div>
+            <form id="filter-form" class="p-6 space-y-4" onsubmit="saveFilter(event)">
+                <input type="hidden" id="filter-id">
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Nome</label>
+                    <input type="text" id="filter-name" class="input-field w-full px-3 py-2 rounded" required>
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Padrão (Regex)</label>
+                    <input type="text" id="filter-pattern" class="input-field w-full px-3 py-2 rounded font-mono" required>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Direção</label>
+                        <select id="filter-direction" class="input-field w-full px-3 py-2 rounded">
+                            <option value="both">Ambas</option>
+                            <option value="input">Entrada</option>
+                            <option value="output">Saída</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Ação</label>
+                        <select id="filter-action" class="input-field w-full px-3 py-2 rounded">
+                            <option value="block">Bloquear</option>
+                            <option value="redact">Mascarar</option>
+                            <option value="warn">Alertar</option>
+                            <option value="allow">Permitir</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Categoria</label>
+                    <input type="text" id="filter-category" class="input-field w-full px-3 py-2 rounded" value="general">
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeFilterModal()" class="flex-1 px-4 py-2 border border-slate-600 rounded-lg">Cancelar</button>
+                    <button type="submit" class="flex-1 btn-primary px-4 py-2 rounded-lg">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Persona Modal -->
+    <div id="persona-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="card w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b border-slate-700">
+                <h3 id="persona-modal-title" class="text-xl font-bold">Nova Persona</h3>
+            </div>
+            <form id="persona-form" class="p-6 space-y-4" onsubmit="savePersona(event)">
+                <input type="hidden" id="persona-id">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Nome</label>
+                        <input type="text" id="persona-name" class="input-field w-full px-3 py-2 rounded" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Nome do Assistente</label>
+                        <input type="text" id="persona-assistant-name" class="input-field w-full px-3 py-2 rounded" value="Assistente">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Tom</label>
+                        <select id="persona-tone" class="input-field w-full px-3 py-2 rounded">
+                            <option value="professional">Profissional</option>
+                            <option value="formal">Formal</option>
+                            <option value="casual">Casual</option>
+                            <option value="friendly">Amigável</option>
+                            <option value="technical">Técnico</option>
+                            <option value="educational">Educacional</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Idioma</label>
+                        <select id="persona-language" class="input-field w-full px-3 py-2 rounded">
+                            <option value="pt-br">Português (BR)</option>
+                            <option value="pt-pt">Português (PT)</option>
+                            <option value="en-us">English (US)</option>
+                            <option value="es">Español</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">System Prompt</label>
+                    <textarea id="persona-system-prompt" class="input-field w-full px-3 py-2 rounded h-32 resize-none"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" id="persona-use-markdown" class="w-5 h-5 rounded" checked>
+                        <span>Usar Markdown</span>
+                    </label>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" id="persona-use-emoji" class="w-5 h-5 rounded">
+                        <span>Usar Emoji</span>
+                    </label>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closePersonaModal()" class="flex-1 px-4 py-2 border border-slate-600 rounded-lg">Cancelar</button>
+                    <button type="submit" class="flex-1 btn-primary px-4 py-2 rounded-lg">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // API Base
+        // ═══════════════════════════════════════════════════════════════════════
+        const API_BASE = '/admin';
+        let authHeader = '';
+        let refreshInterval = null;
+        let charts = {};
+        let chatHistory = [];
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Authentication
+        // ═══════════════════════════════════════════════════════════════════════
+        function getAuthHeader() {
+            const stored = sessionStorage.getItem('mcp_auth');
+            if (stored) {
+                authHeader = stored;
+                return stored;
+            }
+            return null;
+        }
+
+        function setAuthHeader(username, password) {
+            authHeader = 'Basic ' + btoa(username + ':' + password);
+            sessionStorage.setItem('mcp_auth', authHeader);
+        }
+
+        function logout() {
+            sessionStorage.removeItem('mcp_auth');
+            authHeader = '';
+            location.reload();
+        }
+
+        async function apiCall(endpoint, options = {}) {
+            if (!authHeader) {
+                const username = prompt('Usuário:');
+                const password = prompt('Senha:');
+                if (!username || !password) throw new Error('Autenticação necessária');
+                setAuthHeader(username, password);
+            }
+
+            const response = await fetch(API_BASE + endpoint, {
+                ...options,
+                headers: {
+                    'Authorization': authHeader,
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+
+            if (response.status === 401) {
+                sessionStorage.removeItem('mcp_auth');
+                authHeader = '';
+                throw new Error('Não autorizado');
+            }
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.detail || 'Erro na requisição');
+            }
+
+            return response.json();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Tab Navigation
+        // ═══════════════════════════════════════════════════════════════════════
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            
+            // Show selected tab
+            document.getElementById('tab-' + tabName)?.classList.remove('hidden');
+            document.querySelector(`[data-tab="${tabName}"]`)?.classList.add('active');
+            
+            // Load tab data
+            switch(tabName) {
+                case 'dashboard': loadDashboard(); break;
+                case 'providers': loadProviders(); break;
+                case 'security': loadSecurity(); break;
+                case 'personas': loadPersonas(); break;
+                case 'customization': loadCustomization(); break;
+                case 'chat': loadChatConfig(); break;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Dashboard
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadDashboard() {
+            try {
+                const data = await apiCall('/dashboard');
+                updateStats(data.metrics.global);
+                updateProviderStats(data.metrics.providers);
+                updateRecentRequests(data.metrics.recent_requests);
+                updateCharts(data.metrics.time_series_60m);
+            } catch (e) {
+                console.error('Error loading dashboard:', e);
+            }
+        }
+
+        function updateStats(global) {
+            document.getElementById('stat-requests').textContent = formatNumber(global.total_requests);
+            document.getElementById('stat-rpm').textContent = formatNumber(global.requests_per_minute, 1);
+            document.getElementById('stat-tokens').textContent = `${formatNumber(global.total_input_tokens)} / ${formatNumber(global.total_output_tokens)}`;
+            document.getElementById('stat-tpm').textContent = formatNumber(global.tokens_per_minute, 0);
+            document.getElementById('stat-bytes').textContent = `${formatBytes(global.total_request_bytes)} / ${formatBytes(global.total_response_bytes)}`;
+            document.getElementById('stat-errors').textContent = (global.error_rate * 100).toFixed(1) + '%';
+            document.getElementById('stat-error-count').textContent = global.total_errors;
+        }
+
+        function updateProviderStats(providers) {
+            const container = document.getElementById('provider-stats');
+            if (!providers?.length) {
+                container.innerHTML = '<p class="text-slate-500 col-span-full">Nenhum provider configurado</p>';
+                return;
+            }
+
+            container.innerHTML = providers.map(p => `
+                <div class="bg-slate-800 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-medium">${p.provider_name}</span>
+                        <span class="text-xs px-2 py-1 rounded ${p.error_rate > 5 ? 'bg-red-600/20 text-red-400' : 'bg-green-600/20 text-green-400'}">
+                            ${(100 - p.error_rate).toFixed(1)}% success
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-sm text-slate-400">
+                        <div>Requests: <span class="text-white">${formatNumber(p.total_requests)}</span></div>
+                        <div>Tokens: <span class="text-white">${formatNumber(p.total_tokens)}</span></div>
+                        <div>Latência: <span class="text-white">${p.avg_latency_ms.toFixed(0)}ms</span></div>
+                        <div>P95: <span class="text-white">${p.p95_latency_ms.toFixed(0)}ms</span></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateRecentRequests(requests) {
+            const tbody = document.getElementById('recent-requests');
+            if (!requests?.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-slate-500">Nenhuma requisição recente</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = requests.slice(0, 10).map(r => `
+                <tr class="border-b border-slate-700/50">
+                    <td class="py-2 px-3">${new Date(r.timestamp).toLocaleTimeString()}</td>
+                    <td class="py-2 px-3">${r.provider_id}</td>
+                    <td class="py-2 px-3 text-slate-400">${r.model}</td>
+                    <td class="py-2 px-3 text-right">${formatNumber(r.input_tokens)}</td>
+                    <td class="py-2 px-3 text-right">${formatNumber(r.output_tokens)}</td>
+                    <td class="py-2 px-3 text-right">${r.latency_ms.toFixed(0)}ms</td>
+                    <td class="py-2 px-3 text-center">
+                        ${r.success 
+                            ? '<span class="text-green-400"><i class="fas fa-check"></i></span>'
+                            : '<span class="text-red-400"><i class="fas fa-times"></i></span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateCharts(timeSeries) {
+            if (!timeSeries?.length) return;
+
+            const labels = timeSeries.map(t => new Date(t.timestamp).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}));
+            const requests = timeSeries.map(t => t.requests);
+            const inputTokens = timeSeries.map(t => t.input_tokens);
+            const outputTokens = timeSeries.map(t => t.output_tokens);
+
+            // Requests chart
+            if (charts.requests) charts.requests.destroy();
+            charts.requests = new Chart(document.getElementById('chart-requests'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Requests',
+                        data: requests,
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: chartOptions()
+            });
+
+            // Tokens chart
+            if (charts.tokens) charts.tokens.destroy();
+            charts.tokens = new Chart(document.getElementById('chart-tokens'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Input',
+                            data: inputTokens,
+                            borderColor: '#22c55e',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Output',
+                            data: outputTokens,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: chartOptions()
+            });
+        }
+
+        function chartOptions() {
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: true, position: 'top' } },
+                scales: {
+                    x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                    y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' }, beginAtZero: true }
+                }
+            };
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Providers
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadProviders() {
+            try {
+                const data = await apiCall('/llm/providers');
+                renderProvidersList(data.providers);
+            } catch (e) {
+                console.error('Error loading providers:', e);
+            }
+        }
+
+        function renderProvidersList(providers) {
+            const container = document.getElementById('providers-list');
+            if (!providers?.length) {
+                container.innerHTML = '<p class="text-slate-500">Nenhum provider configurado</p>';
+                return;
+            }
+
+            container.innerHTML = providers.map(p => `
+                <div class="card p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-indigo-600/20 flex items-center justify-center">
+                                <i class="fas fa-${getProviderIcon(p.type)} text-indigo-400"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-medium">${p.name}</h4>
+                                <p class="text-xs text-slate-400">${p.type}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-1 text-xs rounded ${p.enabled ? 'bg-green-600/20 text-green-400' : 'bg-slate-600/20 text-slate-400'}">
+                                ${p.enabled ? 'Ativo' : 'Inativo'}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="text-sm text-slate-400 space-y-1">
+                        <p>API Key: ${p.api_key || 'Não configurada'}</p>
+                        <p>Modelos: ${p.models?.join(', ') || 'Nenhum'}</p>
+                        <p>Prioridade: ${p.priority}</p>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button onclick="editProvider('${p.id}')" class="flex-1 px-3 py-2 text-sm border border-slate-600 rounded hover:bg-slate-700">
+                            <i class="fas fa-edit mr-1"></i> Editar
+                        </button>
+                        <button onclick="testProvider('${p.id}')" class="flex-1 px-3 py-2 text-sm border border-slate-600 rounded hover:bg-slate-700">
+                            <i class="fas fa-plug mr-1"></i> Testar
+                        </button>
+                        <button onclick="deleteProvider('${p.id}')" class="px-3 py-2 text-sm border border-red-600/50 text-red-400 rounded hover:bg-red-600/20">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getProviderIcon(type) {
+            const icons = {
+                openai: 'brain',
+                anthropic: 'robot',
+                ollama: 'server',
+                azure_openai: 'cloud',
+                google: 'google',
+                custom: 'cog'
+            };
+            return icons[type] || 'plug';
+        }
+
+        function openProviderModal(provider = null) {
+            document.getElementById('provider-modal-title').textContent = provider ? 'Editar Provider' : 'Novo Provider';
+            document.getElementById('provider-id').value = provider?.id || '';
+            document.getElementById('provider-name').value = provider?.name || '';
+            document.getElementById('provider-type').value = provider?.type || 'openai';
+            document.getElementById('provider-api-key').value = '';
+            document.getElementById('provider-base-url').value = provider?.api_base_url || '';
+            document.getElementById('provider-models').value = provider?.models?.join(', ') || '';
+            document.getElementById('provider-max-tokens').value = provider?.max_tokens || 4096;
+            document.getElementById('provider-priority').value = provider?.priority || 100;
+            document.getElementById('provider-modal').classList.remove('hidden');
+            document.getElementById('provider-modal').classList.add('flex');
+        }
+
+        function closeProviderModal() {
+            document.getElementById('provider-modal').classList.add('hidden');
+            document.getElementById('provider-modal').classList.remove('flex');
+        }
+
+        async function saveProvider(e) {
+            e.preventDefault();
+            const id = document.getElementById('provider-id').value;
+            const data = {
+                name: document.getElementById('provider-name').value,
+                type: document.getElementById('provider-type').value,
+                api_key: document.getElementById('provider-api-key').value || undefined,
+                api_base_url: document.getElementById('provider-base-url').value || undefined,
+                models: document.getElementById('provider-models').value.split(',').map(m => m.trim()).filter(Boolean),
+                max_tokens: parseInt(document.getElementById('provider-max-tokens').value),
+                priority: parseInt(document.getElementById('provider-priority').value)
+            };
+
+            try {
+                if (id) {
+                    await apiCall(`/llm/providers/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+                } else {
+                    await apiCall('/llm/providers', { method: 'POST', body: JSON.stringify(data) });
+                }
+                closeProviderModal();
+                loadProviders();
+            } catch (e) {
+                alert('Erro: ' + e.message);
+            }
+        }
+
+        async function deleteProvider(id) {
+            if (!confirm('Remover este provider?')) return;
+            try {
+                await apiCall(`/llm/providers/${id}`, { method: 'DELETE' });
+                loadProviders();
+            } catch (e) {
+                alert('Erro: ' + e.message);
+            }
+        }
+
+        async function testProvider(id) {
+            try {
+                const result = await apiCall(`/llm/providers/${id}/test`, { method: 'POST' });
+                alert(`Status: ${result.status}\nLatência: ${result.latency_ms}ms`);
+            } catch (e) {
+                alert('Erro ao testar: ' + e.message);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Security
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadSecurity() {
+            try {
+                const data = await apiCall('/security');
+                document.getElementById('security-enabled').checked = data.enabled;
+                document.getElementById('pii-detection').checked = data.pii_detection_enabled;
+                document.getElementById('audit-enabled').checked = data.audit_enabled;
+                document.getElementById('rate-limit-enabled').checked = data.user_rate_limit_enabled;
+                renderFiltersList(data.content_filters);
+            } catch (e) {
+                console.error('Error loading security:', e);
+            }
+        }
+
+        function renderFiltersList(filters) {
+            const container = document.getElementById('filters-list');
+            if (!filters?.length) {
+                container.innerHTML = '<p class="text-slate-500">Nenhum filtro configurado</p>';
+                return;
+            }
+
+            container.innerHTML = filters.map(f => `
+                <div class="bg-slate-800 rounded-lg p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded flex items-center justify-center ${getActionColor(f.action)}">
+                            <i class="fas fa-${getActionIcon(f.action)} text-sm"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-medium">${f.name}</h4>
+                            <p class="text-xs text-slate-400">${f.category} • ${f.direction} • ${f.action}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-1 text-xs rounded ${f.enabled ? 'bg-green-600/20 text-green-400' : 'bg-slate-600/20 text-slate-400'}">
+                            ${f.enabled ? 'Ativo' : 'Inativo'}
+                        </span>
+                        <button onclick="editFilter('${f.id}')" class="p-2 hover:bg-slate-700 rounded">
+                            <i class="fas fa-edit text-slate-400"></i>
+                        </button>
+                        <button onclick="deleteFilter('${f.id}')" class="p-2 hover:bg-red-600/20 rounded">
+                            <i class="fas fa-trash text-red-400"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getActionColor(action) {
+            const colors = {
+                block: 'bg-red-600/20 text-red-400',
+                redact: 'bg-yellow-600/20 text-yellow-400',
+                warn: 'bg-blue-600/20 text-blue-400',
+                allow: 'bg-green-600/20 text-green-400'
+            };
+            return colors[action] || 'bg-slate-600/20 text-slate-400';
+        }
+
+        function getActionIcon(action) {
+            const icons = { block: 'ban', redact: 'eye-slash', warn: 'exclamation', allow: 'check' };
+            return icons[action] || 'filter';
+        }
+
+        function openFilterModal(filter = null) {
+            document.getElementById('filter-modal-title').textContent = filter ? 'Editar Filtro' : 'Novo Filtro';
+            document.getElementById('filter-id').value = filter?.id || '';
+            document.getElementById('filter-name').value = filter?.name || '';
+            document.getElementById('filter-pattern').value = filter?.pattern || '';
+            document.getElementById('filter-direction').value = filter?.direction || 'both';
+            document.getElementById('filter-action').value = filter?.action || 'block';
+            document.getElementById('filter-category').value = filter?.category || 'general';
+            document.getElementById('filter-modal').classList.remove('hidden');
+            document.getElementById('filter-modal').classList.add('flex');
+        }
+
+        function closeFilterModal() {
+            document.getElementById('filter-modal').classList.add('hidden');
+            document.getElementById('filter-modal').classList.remove('flex');
+        }
+
+        async function saveFilter(e) {
+            e.preventDefault();
+            const id = document.getElementById('filter-id').value;
+            const data = {
+                name: document.getElementById('filter-name').value,
+                pattern: document.getElementById('filter-pattern').value,
+                direction: document.getElementById('filter-direction').value,
+                action: document.getElementById('filter-action').value,
+                category: document.getElementById('filter-category').value
+            };
+
+            try {
+                if (id) {
+                    await apiCall(`/security/filters/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+                } else {
+                    await apiCall('/security/filters', { method: 'POST', body: JSON.stringify(data) });
+                }
+                closeFilterModal();
+                loadSecurity();
+            } catch (e) {
+                alert('Erro: ' + e.message);
+            }
+        }
+
+        async function deleteFilter(id) {
+            if (!confirm('Remover este filtro?')) return;
+            try {
+                await apiCall(`/security/filters/${id}`, { method: 'DELETE' });
+                loadSecurity();
+            } catch (e) {
+                alert('Erro: ' + e.message);
+            }
+        }
+
+        async function updateSecurityConfig() {
+            const data = {
+                enabled: document.getElementById('security-enabled').checked,
+                pii_detection_enabled: document.getElementById('pii-detection').checked,
+                audit_enabled: document.getElementById('audit-enabled').checked,
+                user_rate_limit_enabled: document.getElementById('rate-limit-enabled').checked
+            };
+            try {
+                await apiCall('/security', { method: 'PUT', body: JSON.stringify(data) });
+            } catch (e) {
+                console.error('Error updating security:', e);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Personas
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadPersonas() {
+            try {
+                const data = await apiCall('/customization/personas');
+                renderPersonasList(data.personas, data.default_persona_id);
+            } catch (e) {
+                console.error('Error loading personas:', e);
+            }
+        }
+
+        function renderPersonasList(personas, defaultId) {
+            const container = document.getElementById('personas-list');
+            if (!personas?.length) {
+                container.innerHTML = '<p class="text-slate-500">Nenhuma persona configurada</p>';
+                return;
+            }
+
+            container.innerHTML = personas.map(p => `
+                <div class="card p-4 ${p.id === defaultId ? 'border-indigo-500' : ''}">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-indigo-600/20 flex items-center justify-center">
+                                <i class="fas fa-user text-indigo-400"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-medium">${p.name}</h4>
+                                <p class="text-xs text-slate-400">${p.assistant_name} • ${p.tone} • ${p.language}</p>
+                            </div>
+                        </div>
+                        ${p.id === defaultId ? '<span class="px-2 py-1 text-xs bg-indigo-600/20 text-indigo-400 rounded">Padrão</span>' : ''}
+                    </div>
+                    <p class="text-sm text-slate-400 line-clamp-2 mb-3">${p.system_prompt?.substring(0, 100) || 'Sem prompt'}...</p>
+                    <div class="flex gap-2">
+                        <button onclick='editPersona(${JSON.stringify(p)})' class="flex-1 px-3 py-2 text-sm border border-slate-600 rounded hover:bg-slate-700">
+                            <i class="fas fa-edit mr-1"></i> Editar
+                        </button>
+                        <button onclick="setDefaultPersona('${p.id}')" class="flex-1 px-3 py-2 text-sm border border-slate-600 rounded hover:bg-slate-700">
+                            <i class="fas fa-star mr-1"></i> Padrão
+                        </button>
+                        <button onclick="deletePersona('${p.id}')" class="px-3 py-2 text-sm border border-red-600/50 text-red-400 rounded hover:bg-red-600/20">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openPersonaModal(persona = null) {
+            document.getElementById('persona-modal-title').textContent = persona ? 'Editar Persona' : 'Nova Persona';
+            document.getElementById('persona-id').value = persona?.id || '';
+            document.getElementById('persona-name').value = persona?.name || '';
+            document.getElementById('persona-assistant-name').value = persona?.assistant_name || 'Assistente';
+            document.getElementById('persona-tone').value = persona?.tone || 'professional';
+            document.getElementById('persona-language').value = persona?.language || 'pt-br';
+            document.getElementById('persona-system-prompt').value = persona?.system_prompt || '';
+            document.getElementById('persona-use-markdown').checked = persona?.use_markdown ?? true;
+            document.getElementById('persona-use-emoji').checked = persona?.use_emoji ?? false;
+            document.getElementById('persona-modal').classList.remove('hidden');
+            document.getElementById('persona-modal').classList.add('flex');
+        }
+
+        function editPersona(persona) {
+            openPersonaModal(persona);
+        }
+
+        function closePersonaModal() {
+            document.getElementById('persona-modal').classList.add('hidden');
+            document.getElementById('persona-modal').classList.remove('flex');
+        }
+
+        async function savePersona(e) {
+            e.preventDefault();
+            const id = document.getElementById('persona-id').value;
+            const data = {
+                name: document.getElementById('persona-name').value,
+                assistant_name: document.getElementById('persona-assistant-name').value,
+                tone: document.getElementById('persona-tone').value,
+                language: document.getElementById('persona-language').value,
+                system_prompt: document.getElementById('persona-system-prompt').value,
+                use_markdown: document.getElementById('persona-use-markdown').checked,
+                use_emoji: document.getElementById('persona-use-emoji').checked
+            };
+
+            try {
+                if (id) {
+                    await apiCall(`/customization/personas/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+                } else {
+                    await apiCall('/customization/personas', { method: 'POST', body: JSON.stringify(data) });
+                }
+                closePersonaModal();
+                loadPersonas();
+            } catch (e) {
+                alert('Erro: ' + e.message);
+            }
+        }
+
+        async function deletePersona(id) {
+            if (!confirm('Remover esta persona?')) return;
+            try {
+                await apiCall(`/customization/personas/${id}`, { method: 'DELETE' });
+                loadPersonas();
+            } catch (e) {
+                alert('Erro: ' + e.message);
+            }
+        }
+
+        async function setDefaultPersona(id) {
+            try {
+                await apiCall('/customization', { method: 'PUT', body: JSON.stringify({ default_persona_id: id }) });
+                loadPersonas();
+            } catch (e) {
+                alert('Erro: ' + e.message);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Customization
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadCustomization() {
+            try {
+                const data = await apiCall('/customization');
+                document.getElementById('default-temperature').value = data.default_temperature;
+                document.getElementById('temperature-value').textContent = data.default_temperature;
+                document.getElementById('default-max-tokens').value = data.default_max_tokens;
+                document.getElementById('streaming-enabled').checked = data.streaming_enabled;
+                document.getElementById('cache-enabled').checked = data.cache_enabled;
+                document.getElementById('retry-enabled').checked = data.retry?.enabled ?? true;
+                document.getElementById('max-retries').value = data.retry?.max_retries ?? 3;
+                document.getElementById('fallback-enabled').checked = data.retry?.fallback_enabled ?? true;
+                document.getElementById('exponential-backoff').checked = data.retry?.exponential_backoff ?? true;
+            } catch (e) {
+                console.error('Error loading customization:', e);
+            }
+        }
+
+        // Temperature slider display
+        document.getElementById('default-temperature')?.addEventListener('input', function() {
+            document.getElementById('temperature-value').textContent = this.value;
+        });
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Chat
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadChatConfig() {
+            try {
+                // Load personas for dropdown
+                const personas = await apiCall('/customization/personas');
+                const personaSelect = document.getElementById('chat-persona');
+                personaSelect.innerHTML = personas.personas.map(p => 
+                    `<option value="${p.id}" ${p.id === personas.default_persona_id ? 'selected' : ''}>${p.name}</option>`
+                ).join('');
+
+                // Load providers for dropdown
+                const providers = await apiCall('/llm/providers');
+                const providerSelect = document.getElementById('chat-provider');
+                providerSelect.innerHTML = '<option value="">Auto (Fallback)</option>' + 
+                    providers.providers.filter(p => p.enabled).map(p => 
+                        `<option value="${p.id}">${p.name}</option>`
+                    ).join('');
+            } catch (e) {
+                console.error('Error loading chat config:', e);
+            }
+        }
+
+        function handleChatKeydown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            input.value = '';
+            appendMessage('user', message);
+
+            const provider = document.getElementById('chat-provider').value;
+            const persona = document.getElementById('chat-persona').value;
+
+            // Add to history
+            chatHistory.push({ role: 'user', content: message });
+
+            try {
+                // Show typing indicator
+                const typingId = appendMessage('assistant', '<div class="spinner"></div>', true);
+
+                // Call chat API
+                const response = await fetch('/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authHeader
+                    },
+                    body: JSON.stringify({
+                        messages: chatHistory,
+                        stream: false,
+                        provider: provider || undefined,
+                        persona: persona || undefined
+                    })
+                });
+
+                if (!response.ok) throw new Error('Erro na requisição');
+
+                const data = await response.json();
+                const assistantMessage = data.choices?.[0]?.message?.content || 'Sem resposta';
+
+                // Remove typing indicator and add response
+                document.getElementById(typingId)?.remove();
+                appendMessage('assistant', assistantMessage);
+                chatHistory.push({ role: 'assistant', content: assistantMessage });
+
+            } catch (e) {
+                document.querySelector('.spinner')?.closest('.chat-message')?.remove();
+                appendMessage('assistant', 'Erro: ' + e.message);
+            }
+        }
+
+        function appendMessage(role, content, isTyping = false) {
+            const container = document.getElementById('chat-messages');
+            const id = 'msg-' + Date.now();
+            
+            // Remove welcome message if exists
+            if (container.querySelector('.text-center')) {
+                container.innerHTML = '';
+            }
+
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = `chat-message ${role === 'user' ? 'chat-user' : 'chat-assistant'} rounded-lg p-4`;
+            div.innerHTML = isTyping ? content : `<div class="chat-content">${formatMarkdown(content)}</div>`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return id;
+        }
+
+        function clearChat() {
+            chatHistory = [];
+            document.getElementById('chat-messages').innerHTML = `
+                <div class="text-center text-slate-500 py-8">
+                    <i class="fas fa-comments text-4xl mb-3"></i>
+                    <p>Inicie uma conversa com o assistente</p>
+                </div>
+            `;
+        }
+
+        function formatMarkdown(text) {
+            // Simple markdown formatting
+            return text
+                .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Utilities
+        // ═══════════════════════════════════════════════════════════════════════
+        function formatNumber(n, decimals = 0) {
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+            return n.toFixed(decimals);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + ' GB';
+            if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+            if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return bytes + ' B';
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // Initialization
+        // ═══════════════════════════════════════════════════════════════════════
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Check auth
+            if (!getAuthHeader()) {
+                const username = prompt('Usuário:');
+                const password = prompt('Senha:');
+                if (username && password) {
+                    setAuthHeader(username, password);
+                }
+            }
+
+            // Load dashboard
+            showTab('dashboard');
+
+            // Auto-refresh dashboard every 30s
+            refreshInterval = setInterval(() => {
+                const activeTab = document.querySelector('.tab-content:not(.hidden)')?.id;
+                if (activeTab === 'tab-dashboard') {
+                    loadDashboard();
+                }
+            }, 30000);
+        });
+    </script>
+</body>
+</html>

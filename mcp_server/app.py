@@ -4,19 +4,24 @@ MCP Server FastAPI Application
 Main application entry point with all routes and middleware.
 """
 
+import os
 import time
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 
 from .config import settings
 from .router import router as llm_router
 from .providers import ChatRequest, ProviderError
+from .admin_router import router as admin_router
+from .metrics import get_metrics, RequestMetrics
 
 
 # Logging setup
@@ -46,6 +51,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Include admin router
+    app.include_router(admin_router)
 
     # ── Request tracking middleware ───────────────────────────────────────────
     @app.middleware("http")
@@ -163,13 +171,19 @@ def create_app() -> FastAPI:
     # ── Metrics endpoint ──────────────────────────────────────────────────────
     @app.get("/metrics")
     async def metrics():
-        """Prometheus-style metrics (placeholder)."""
-        # TODO: Implement proper metrics collection
-        return {
-            "requests_total": 0,
-            "requests_by_provider": {},
-            "latency_histogram": {},
-        }
+        """Prometheus-style metrics."""
+        metrics_collector = get_metrics()
+        return metrics_collector.get_global_metrics()
+
+    # ── Portal ────────────────────────────────────────────────────────────────
+    @app.get("/portal", response_class=HTMLResponse)
+    @app.get("/portal/", response_class=HTMLResponse)
+    async def portal():
+        """Serve the admin portal."""
+        portal_path = Path(__file__).parent / "portal" / "index.html"
+        if portal_path.exists():
+            return HTMLResponse(content=portal_path.read_text(encoding="utf-8"))
+        return HTMLResponse(content="<h1>Portal não encontrado</h1>", status_code=404)
 
     return app
 
