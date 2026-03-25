@@ -675,29 +675,23 @@
         function logout() {
             sessionStorage.removeItem('mcp_auth');
             authHeader = '';
-            location.reload();
+            // Clear browser auth cache by redirecting to logout URL
+            window.location.href = 'https://logout:logout@' + window.location.host + '/';
         }
 
         async function apiCall(endpoint, options = {}) {
-            if (!authHeader) {
-                const username = prompt('Usuário:');
-                const password = prompt('Senha:');
-                if (!username || !password) throw new Error('Autenticação necessária');
-                setAuthHeader(username, password);
-            }
-
+            // Use credentials: include to send browser's Basic Auth
             const response = await fetch(API_BASE + endpoint, {
                 ...options,
+                credentials: 'include',
                 headers: {
-                    'Authorization': authHeader,
                     'Content-Type': 'application/json',
                     ...options.headers
                 }
             });
 
             if (response.status === 401) {
-                sessionStorage.removeItem('mcp_auth');
-                authHeader = '';
+                // Browser will handle 401 with its own auth dialog
                 throw new Error('Não autorizado');
             }
 
@@ -1415,14 +1409,7 @@
         // Initialization
         // ═══════════════════════════════════════════════════════════════════════
         document.addEventListener('DOMContentLoaded', async function() {
-            // Check auth
-            if (!getAuthHeader()) {
-                const username = prompt('Usuário:');
-                const password = prompt('Senha:');
-                if (username && password) {
-                    setAuthHeader(username, password);
-                }
-            }
+            // Auth is handled by nginx Basic Auth - no need to prompt here
 
             // Load dashboard
             showTab('dashboard');
