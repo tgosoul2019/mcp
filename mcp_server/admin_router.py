@@ -12,11 +12,11 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 
-from ..database import get_db
-from ..models.llm import LLMProvider, LLMConfig
-from ..models.security import SecurityConfig, ContentFilter, SecurityRule
-from ..models.customization import CustomizationConfig, PersonaConfig, RoutingRule
-from ..metrics import get_metrics
+from .database import get_db
+from .models.llm import LLMProvider, LLMConfig
+from .models.security import SecurityConfig, ContentFilter, SecurityRule
+from .models.customization import CustomizationConfig, PersonaConfig, RoutingRule
+from .metrics import get_metrics
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 security = HTTPBasic()
@@ -137,7 +137,7 @@ async def list_providers(username: str = Depends(verify_admin)):
 @router.post("/llm/providers")
 async def create_provider(data: ProviderCreate, username: str = Depends(verify_admin)):
     """Cria um novo provider."""
-    from ..models.llm import LLMProvider as LLMProviderModel, LLMProviderType
+    from .models.llm import LLMProvider as LLMProviderModel, LLMProviderType
     
     db = get_db()
     config = db.llm.load()
@@ -278,7 +278,7 @@ async def list_filters(username: str = Depends(verify_admin)):
 @router.post("/security/filters")
 async def create_filter(data: FilterCreate, username: str = Depends(verify_admin)):
     """Cria um novo filtro de conteúdo."""
-    from ..models.security import ContentFilter as ContentFilterModel, FilterDirection, FilterAction
+    from .models.security import ContentFilter as ContentFilterModel, FilterDirection, FilterAction
     
     db = get_db()
     config = db.security.load()
@@ -302,7 +302,7 @@ async def create_filter(data: FilterCreate, username: str = Depends(verify_admin
 @router.put("/security/filters/{filter_id}")
 async def update_filter(filter_id: str, data: FilterUpdate, username: str = Depends(verify_admin)):
     """Atualiza um filtro."""
-    from ..models.security import FilterDirection, FilterAction
+    from .models.security import FilterDirection, FilterAction
     
     db = get_db()
     config = db.security.load()
@@ -391,7 +391,7 @@ async def update_customization_config(data: dict, username: str = Depends(verify
     
     # Retry config
     if "retry" in data:
-        from ..models.customization import RetryConfig
+        from .models.customization import RetryConfig
         config.retry = RetryConfig(**data["retry"])
     
     db.customization.save(config)
@@ -412,7 +412,7 @@ async def list_personas(username: str = Depends(verify_admin)):
 @router.post("/customization/personas")
 async def create_persona(data: PersonaCreate, username: str = Depends(verify_admin)):
     """Cria uma nova persona."""
-    from ..models.customization import PersonaConfig as PersonaModel, ToneType, LanguageStyle
+    from .models.customization import PersonaConfig as PersonaModel, ToneType, LanguageStyle
     
     db = get_db()
     config = db.customization.load()
@@ -437,7 +437,7 @@ async def create_persona(data: PersonaCreate, username: str = Depends(verify_adm
 @router.put("/customization/personas/{persona_id}")
 async def update_persona(persona_id: str, data: PersonaUpdate, username: str = Depends(verify_admin)):
     """Atualiza uma persona."""
-    from ..models.customization import ToneType, LanguageStyle
+    from .models.customization import ToneType, LanguageStyle
     
     db = get_db()
     config = db.customization.load()
