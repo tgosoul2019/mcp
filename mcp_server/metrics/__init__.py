@@ -3,7 +3,7 @@
 # Coleta e exposição de métricas de uso
 # ══════════════════════════════════════════════════════════════════════════════
 
-from .collector import MetricsCollector, RequestMetrics, ProviderMetrics
+from .collector import MetricsCollector, RequestMetrics, ProviderMetrics, get_metrics
 from .storage import MetricsStorage
 
 __all__ = [
@@ -11,4 +11,5 @@ __all__ = [
     "RequestMetrics",
     "ProviderMetrics",
     "MetricsStorage",
+    "get_metrics",
 ]
