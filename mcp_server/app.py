@@ -185,6 +185,26 @@ def create_app() -> FastAPI:
             return HTMLResponse(content=portal_path.read_text(encoding="utf-8"))
         return HTMLResponse(content="<h1>Portal não encontrado</h1>", status_code=404)
 
+    # ── Startup: Seed providers ───────────────────────────────────────────────
+    @app.on_event("startup")
+    async def seed_providers():
+        """Seed providers gratuitos se banco estiver vazio."""
+        from .database import get_db
+        from .seed_providers import get_seed_providers
+        from .models.llm import LLMConfig, LLMProvider
+        
+        db = get_db()
+        llm_config = db.llm.load()
+        
+        # Se não tem providers, adiciona os seeds
+        if not llm_config.providers:
+            logger.info("🌱 Seeding free LLM providers...")
+            for seed in get_seed_providers():
+                provider = LLMProvider(**seed)
+                llm_config.providers.append(provider)
+            db.llm.save(llm_config)
+            logger.info(f"✅ Added {len(llm_config.providers)} seed providers")
+
     return app
 
 

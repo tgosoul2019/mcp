@@ -305,16 +305,22 @@
                 <!-- Chat Header -->
                 <div class="p-4 border-b border-slate-700 flex items-center justify-between">
                     <div class="flex items-center gap-3">
-                        <h2 class="text-xl font-bold">Chat</h2>
+                        <h2 class="text-xl font-bold">💬 Chat</h2>
                         <select id="chat-persona" class="input-field px-3 py-1 rounded text-sm">
-                            <!-- Personas will be loaded here -->
+                            <!-- Agentes will be loaded here -->
                         </select>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <select id="chat-provider" class="input-field px-3 py-1 rounded text-sm">
-                            <option value="">Auto (Fallback)</option>
-                            <!-- Providers will be loaded here -->
-                        </select>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 bg-slate-800 rounded-lg px-3 py-1">
+                            <i class="fas fa-robot text-indigo-400 text-sm"></i>
+                            <select id="chat-provider" class="bg-transparent text-sm border-none focus:outline-none cursor-pointer">
+                                <option value="">Auto (Fallback)</option>
+                                <!-- Providers will be loaded here -->
+                            </select>
+                        </div>
+                        <div id="chat-model-info" class="text-xs text-slate-500 hidden">
+                            <span id="chat-current-model">-</span>
+                        </div>
                         <button onclick="clearChat()" class="px-3 py-1 text-sm text-slate-400 hover:text-white">
                             <i class="fas fa-trash"></i> Limpar
                         </button>
@@ -693,8 +699,21 @@
         function logout() {
             sessionStorage.removeItem('mcp_auth');
             authHeader = '';
-            // Clear browser auth cache by redirecting to logout URL
-            window.location.href = 'https://logout:logout@' + window.location.host + '/';
+            // Show logout confirmation and instructions
+            document.body.innerHTML = `
+                <div class="min-h-screen bg-slate-900 flex items-center justify-center">
+                    <div class="card p-8 max-w-md text-center">
+                        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-green-600/20 flex items-center justify-center">
+                            <i class="fas fa-check text-green-400 text-2xl"></i>
+                        </div>
+                        <h2 class="text-xl font-bold mb-2">Logout realizado!</h2>
+                        <p class="text-slate-400 mb-6">Para fazer login com outra conta, feche esta aba e abra uma nova.</p>
+                        <button onclick="window.location.reload()" class="btn-primary px-6 py-3 rounded-lg font-medium">
+                            <i class="fas fa-sign-in-alt mr-2"></i> Login novamente
+                        </button>
+                    </div>
+                </div>
+            `;
         }
 
         async function apiCall(endpoint, options = {}) {
@@ -1292,24 +1311,51 @@
         // ═══════════════════════════════════════════════════════════════════════
         // Chat
         // ═══════════════════════════════════════════════════════════════════════
+        let chatProvidersList = [];
+        
         async function loadChatConfig() {
             try {
                 // Load personas for dropdown
                 const personas = await apiCall('/customization/personas');
                 const personaSelect = document.getElementById('chat-persona');
-                personaSelect.innerHTML = personas.personas.map(p => 
-                    `<option value="${p.id}" ${p.id === personas.default_persona_id ? 'selected' : ''}>${p.name}</option>`
-                ).join('');
+                if (personas.personas?.length) {
+                    personaSelect.innerHTML = personas.personas.map(p => 
+                        `<option value="${p.id}" ${p.id === personas.default_persona_id ? 'selected' : ''}>${p.name}</option>`
+                    ).join('');
+                } else {
+                    personaSelect.innerHTML = '<option value="">Padrão</option>';
+                }
 
                 // Load providers for dropdown
                 const providers = await apiCall('/llm/providers');
+                chatProvidersList = providers.providers || [];
                 const providerSelect = document.getElementById('chat-provider');
+                const enabledProviders = chatProvidersList.filter(p => p.enabled);
+                
                 providerSelect.innerHTML = '<option value="">Auto (Fallback)</option>' + 
-                    providers.providers.filter(p => p.enabled).map(p => 
-                        `<option value="${p.id}">${p.name}</option>`
+                    enabledProviders.map(p => 
+                        `<option value="${p.id}" data-model="${p.default_model || ''}">${p.name} (${p.default_model || p.provider_type})</option>`
                     ).join('');
+                
+                // Update model info on change
+                providerSelect.onchange = updateChatModelInfo;
+                updateChatModelInfo();
             } catch (e) {
                 console.error('Error loading chat config:', e);
+            }
+        }
+        
+        function updateChatModelInfo() {
+            const select = document.getElementById('chat-provider');
+            const option = select.selectedOptions[0];
+            const modelInfo = document.getElementById('chat-model-info');
+            const currentModel = document.getElementById('chat-current-model');
+            
+            if (option && option.dataset.model) {
+                currentModel.textContent = option.dataset.model;
+                modelInfo.classList.remove('hidden');
+            } else {
+                modelInfo.classList.add('hidden');
             }
         }
 
