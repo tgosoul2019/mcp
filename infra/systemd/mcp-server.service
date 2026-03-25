@@ -1,0 +1,32 @@
+[Unit]
+Description=MCP Server — Multi-LLM Gateway
+After=network.target
+
+[Service]
+User=mcp
+Group=mcp
+WorkingDirectory=/dados/mcp
+Environment=PATH=/dados/mcp/.venv/bin:/usr/local/bin:/usr/bin:/bin
+
+# Load environment from file
+EnvironmentFile=/dados/mcp/.env
+
+ExecStart=/dados/mcp/.venv/bin/python -m mcp_server
+
+Restart=always
+RestartSec=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mcp-server
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/mcp /dados/mcp
+
+[Install]
+WantedBy=multi-user.target
