@@ -109,8 +109,26 @@
     <!-- Header -->
     <header class="fixed top-0 left-0 right-0 h-16 bg-slate-900/95 backdrop-blur border-b border-slate-700 z-50 flex items-center px-6">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center">
-                <i class="fas fa-robot text-white text-lg"></i>
+            <!-- Robot Logo SVG -->
+            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                <svg viewBox="0 0 40 40" class="w-7 h-7" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Antenna -->
+                    <circle cx="20" cy="4" r="2.5" fill="#fbbf24"/>
+                    <rect x="19" y="6" width="2" height="4" fill="#94a3b8"/>
+                    <!-- Head -->
+                    <rect x="8" y="10" width="24" height="18" rx="4" fill="white"/>
+                    <!-- Eyes -->
+                    <circle cx="14" cy="18" r="3" fill="#6366f1"/>
+                    <circle cx="26" cy="18" r="3" fill="#6366f1"/>
+                    <circle cx="15" cy="17" r="1" fill="white"/>
+                    <circle cx="27" cy="17" r="1" fill="white"/>
+                    <!-- Mouth -->
+                    <rect x="14" y="23" width="12" height="2" rx="1" fill="#6366f1"/>
+                    <!-- Body hint -->
+                    <rect x="12" y="28" width="16" height="8" rx="2" fill="#e2e8f0"/>
+                    <rect x="15" y="30" width="4" height="4" rx="1" fill="#6366f1"/>
+                    <rect x="21" y="30" width="4" height="4" rx="1" fill="#22c55e"/>
+                </svg>
             </div>
             <div>
                 <h1 class="text-lg font-semibold text-white">MCP Server</h1>
@@ -151,8 +169,8 @@
                 <span>Segurança</span>
             </a>
             <a href="#" onclick="showTab('personas')" class="sidebar-item flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white" data-tab="personas">
-                <i class="fas fa-user-circle w-5"></i>
-                <span>Personas</span>
+                <i class="fas fa-robot w-5"></i>
+                <span>Agentes</span>
             </a>
             <a href="#" onclick="showTab('customization')" class="sidebar-item flex items-center gap-3 px-4 py-3 text-slate-300 hover:text-white" data-tab="customization">
                 <i class="fas fa-sliders-h w-5"></i>
@@ -390,12 +408,12 @@
             </div>
         </div>
 
-        <!-- Personas Tab -->
+        <!-- Agentes Tab -->
         <div id="tab-personas" class="tab-content hidden p-6">
             <div class="flex items-center justify-between mb-6">
-                <h2 class="text-2xl font-bold">Personas</h2>
+                <h2 class="text-2xl font-bold">🤖 Agentes</h2>
                 <button onclick="openPersonaModal()" class="btn-primary px-4 py-2 rounded-lg font-medium">
-                    <i class="fas fa-plus mr-2"></i> Nova Persona
+                    <i class="fas fa-plus mr-2"></i> Novo Agente
                 </button>
             </div>
             
@@ -583,11 +601,11 @@
         </div>
     </div>
 
-    <!-- Persona Modal -->
+    <!-- Agente Modal -->
     <div id="persona-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
         <div class="card w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div class="p-6 border-b border-slate-700">
-                <h3 id="persona-modal-title" class="text-xl font-bold">Nova Persona</h3>
+                <h3 id="persona-modal-title" class="text-xl font-bold">🤖 Novo Agente</h3>
             </div>
             <form id="persona-form" class="p-6 space-y-4" onsubmit="savePersona(event)">
                 <input type="hidden" id="persona-id">
@@ -1144,7 +1162,7 @@
         function renderPersonasList(personas, defaultId) {
             const container = document.getElementById('personas-list');
             if (!personas?.length) {
-                container.innerHTML = '<p class="text-slate-500">Nenhuma persona configurada</p>';
+                container.innerHTML = '<p class="text-slate-500">🤖 Nenhum agente configurado</p>';
                 return;
             }
 
@@ -1153,7 +1171,7 @@
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-full bg-indigo-600/20 flex items-center justify-center">
-                                <i class="fas fa-user text-indigo-400"></i>
+                                <i class="fas fa-robot text-indigo-400"></i>
                             </div>
                             <div>
                                 <h4 class="font-medium">${p.name}</h4>
@@ -1179,7 +1197,7 @@
         }
 
         function openPersonaModal(persona = null) {
-            document.getElementById('persona-modal-title').textContent = persona ? 'Editar Persona' : 'Nova Persona';
+            document.getElementById('persona-modal-title').textContent = persona ? '🤖 Editar Agente' : '🤖 Novo Agente';
             document.getElementById('persona-id').value = persona?.id || '';
             document.getElementById('persona-name').value = persona?.name || '';
             document.getElementById('persona-assistant-name').value = persona?.assistant_name || 'Assistente';
